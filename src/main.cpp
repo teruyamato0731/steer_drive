@@ -183,9 +183,9 @@ int main() {
       rct::Velocity vel = {controller.stick[0] / 128.0f, -controller.stick[1] / 128.0f, controller.stick[2] / 128.0f};
 
       printf("vel:");
-      printf("%d\t", (int)(vel.x_milli * 128));
-      printf("%d\t", (int)(vel.y_milli * 128));
-      printf("%d\t", (int)(vel.ang_rad * 128));
+      printf("%3d\t", (int)(vel.x_milli * 128));
+      printf("%3d\t", (int)(vel.y_milli * 128));
+      printf("%3d\t", (int)(vel.ang_rad * 128));
 
       steer.move(vel);
       for(auto i = 0; i < 4; ++i) {
@@ -273,6 +273,7 @@ void calibration() {
   })) {
     if(can1.read(msg)) {
       sensor_board.read(msg);
+      controller.read(msg);
     }
 
     for(int i = 0; i < 4; ++i) {
@@ -285,11 +286,17 @@ void calibration() {
     }
     printf(" ");
     for(auto& e: dc_sender.pwm) {
-      printf("%d\t", e);
+      printf("%4d\t", e);
     }
     for(auto e: sensor_board.enc) {
       printf("% 5d\t", e);
     }
+
+    rct::Velocity vel = {controller.stick[1] / 128.0f, controller.stick[0] / 128.0f, controller.stick[2] / 128.0f};
+    printf("vel:");
+    printf("%3d\t", (int)(vel.x_milli * 128));
+    printf("%3d\t", (int)(vel.y_milli * 128));
+    printf("%3d\t", (int)(vel.ang_rad * 128));
 
     dc_sender.send();
   }
