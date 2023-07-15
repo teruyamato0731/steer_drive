@@ -257,6 +257,7 @@ void wait_can() {
       receive[2] |= (msg.id == 15);
     }
     printf("\nwaiting CAN %2d %2d %2d", 9 * !receive[0], 10 * !receive[1], 15 * !receive[2]);
+    ThisThread::sleep_for(5ms);
   }
 }
 
@@ -299,6 +300,7 @@ void calibration() {
     printf("%3d\t", (int)(vel.ang_rad * 128));
 
     dc_sender.send();
+    ThisThread::sleep_for(10ms);
   }
 
   std::fill(begin(dc_sender.pwm), end(dc_sender.pwm), 0);
