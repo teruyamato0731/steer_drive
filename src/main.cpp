@@ -4,6 +4,7 @@
 #include <mbed.h>
 
 #include <algorithm>
+#include <utility>
 
 #include "SensorBoard.h"
 #include "swap_endian.h"
@@ -163,18 +164,8 @@ int main() {
       }
     }
 
-    // C620が生存なら
-    if(now - pre_alive < 100ms) {
-      // Odom で自己位置を推定
-      int diff[4];
-      for(auto i = 0; i < 4; ++i) {
-        diff[i] = reader.data[i].rpm;
-      }
-      odom.integrate(diff);
-    }
-
     // 10msごとにCAN送信
-    if(now - pre > 10ms) {
+    if(auto delta = now - std::exchange(pre, now); delta > 10ms) {
       rct::Velocity vel = {controller.stick[0] / 128.0f, controller.stick[1] / 128.0f, controller.stick[2] / 128.0f};
 
       printf("vel:");
@@ -190,7 +181,7 @@ int main() {
           // sensor_board の 0~3に接続
           int pos = sensor_board.enc[i] - unit[i].zero_pos;
           // TODO encの更新に合わせる？ delta timeを
-          std::tie(sender.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(reader.data[i].rpm, pos, now - pre);
+          std::tie(sender.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(reader.data[i].rpm, pos, delta);
         } else {
           // fail時, 出力を1/2倍していく
           sender.pwm[i] /= 2;
@@ -200,6 +191,16 @@ int main() {
           unit[i].pid_steer.refresh();
         }
       }
+      // C620が生存なら
+      if(now - pre_alive < 100ms) {
+        // Odom で自己位置を推定
+        int diff[4];
+        for(auto i = 0; i < 4; ++i) {
+          diff[i] = reader.data[i].rpm * delta.count();
+        }
+        odom.integrate(diff);
+      }
+
       // printf("rpm:");
       // for(auto& e: reader.data) {
       //   printf("% 4d\t", e.rpm);
@@ -239,12 +240,16 @@ int main() {
       // printf("% 5d\t", unit[2].target_pos);
       // printf(" dc:");
       // printf("% 5d\t", dc_sender.pwm[2]);
+
+      printf("est:");
+      printf("%3d\t", (int)odom.get().x_milli);
+      printf("%3d\t", (int)odom.get().y_milli);
+      printf("%3d\t", (int)odom.get().ang_rad);
+
       printf("\n");
 
       dc_sender.send();
       sender.send();
-
-      pre = now;
     }
   }
 }
