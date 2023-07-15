@@ -184,7 +184,7 @@ int main() {
 
       steer.move(vel);
       for(auto i = 0; i < 4; ++i) {
-        if(now - pre_alive < 100ms) {
+        if(now - pre_alive < 100ms || true) {
           // pidの計算
           // reader[0]~[3] を使用するため djiモータのIDを1~4にしておく
           // sensor_board の 0~3に接続
@@ -224,10 +224,21 @@ int main() {
       for(auto& e: dc_sender.pwm) {
         printf("% 5d\t", e);
       }
-      printf(" ac:");
-      for(int i = 0; i < 4; ++i) {
-        printf("% 5d\t", sender.pwm[i]);
-      }
+      // printf("rpm:");
+      // for(auto& e: unit) {
+      //   printf("% 5d\t", e.target_rpm);
+      // }
+      // printf(" ac:");
+      // for(int i = 0; i < 4; ++i) {
+      //   printf("% 5d\t", sender.pwm[i]);
+      // }
+
+      // printf("pos:");
+      // printf("% 4d\t", sensor_board.enc[2] - unit[2].zero_pos);
+      // printf("tag:");
+      // printf("% 5d\t", unit[2].target_pos);
+      // printf(" dc:");
+      // printf("% 5d\t", dc_sender.pwm[2]);
       printf("\n");
 
       dc_sender.send();
@@ -239,7 +250,7 @@ int main() {
 }
 
 void set_zero_pos(const int i) {
-  constexpr int offset[4] = {-enc_rot * 75 / 360, enc_rot * 80 / 360, -enc_rot * 85 / 360, enc_rot * 75 / 360};
+  constexpr int offset[4] = {-enc_rot * 85 / 360, enc_rot * 80 / 360, -enc_rot * 80 / 360, enc_rot * 80 / 360};
   unit[i].zero_pos = (sensor_board.enc[i] - offset[i]) % enc_rot;
 }
 
@@ -273,7 +284,7 @@ void calibration() {
     }
 
     for(int i = 0; i < 4; ++i) {
-      dc_sender.pwm[i] = 0.08 * dc_sender.max * !stop[i];
+      dc_sender.pwm[i] = 0.10 * dc_sender.max * !stop[i];
     }
 
     printf("\ncalibrating ");
