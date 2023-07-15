@@ -87,10 +87,9 @@ constexpr rct::PidGain drive_gain{0.8f, 0.5f};
 constexpr rct::PidGain gain{15, 0.75};
 struct SteerUnit {
   auto calc_pid(const int rpm, const int pos, const std::chrono::microseconds& delta_time) {
-    auto drive = pid_drive.calc(target_rpm, rpm, delta_time) * drive_dir;
+    auto drive = pid_drive.calc(target_rpm, rpm, delta_time);
     drive = std::clamp(drive, -0.7f * C620Sender::max, 0.7f * C620Sender::max);
-    // encとdc逆向きだからマイナス
-    auto steer = -pid_steer.calc(target_pos, pos, delta_time);
+    auto steer = pid_steer.calc(target_pos, pos, delta_time);
     steer = -std::clamp(steer, -0.7f * DCSender::max, 0.7f * DCSender::max);
     return std::tuple{drive, steer};
   }
@@ -99,7 +98,6 @@ struct SteerUnit {
   int zero_pos;
   int target_rpm;
   int target_pos;
-  int8_t drive_dir;
 };
 
 // Control
@@ -111,15 +109,13 @@ rct::Odom<4> odom{};
 SteerUnit unit[4] = {};
 rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
   for(int i = 0; i < 4; ++i) {
-    unit[i].target_rpm = abs(cmp[i]) * 6000;  // max 9000rpm
-    // unit[i].target_pos = ((sensor_board.enc[i] - unit[i].zero_pos) / enc_rot) * enc_rot + arg(cmp[i]);
     int pos = sensor_board.enc[i] - unit[i].zero_pos;
     int new_tag_pos = enc_rot / 2 / M_PI * arg(cmp[i]);
-    int diff = new_tag_pos - pos;
-    diff %= enc_rot;
-    unit[i].drive_dir = -1 + (abs(diff) < 800) * 2;
-    diff -= diff / (enc_rot / 2) * enc_rot;
-    unit[i].target_pos += diff;
+    int offset = new_tag_pos - pos;
+    int r = std::round(2.0 * offset / enc_rot);
+    int drive_dir = 1 - 2 * (r % 2);
+    unit[i].target_rpm = abs(cmp[i]) * 6000 * drive_dir;  // max 9000rpm
+    unit[i].target_pos = new_tag_pos - r * (enc_rot / 2);
   }
 }};
 struct Controller {
@@ -179,8 +175,7 @@ int main() {
 
     // 10msごとにCAN送信
     if(now - pre > 10ms) {
-      // rct::Velocity vel = {1, 0, 0};
-      rct::Velocity vel = {controller.stick[0] / 128.0f, -controller.stick[1] / 128.0f, controller.stick[2] / 128.0f};
+      rct::Velocity vel = {controller.stick[0] / 128.0f, controller.stick[1] / 128.0f, controller.stick[2] / 128.0f};
 
       printf("vel:");
       printf("%3d\t", (int)(vel.x_milli * 128));
