@@ -249,13 +249,14 @@ void set_zero_pos(const int i) {
 }
 
 void wait_can() {
-  printf("\nwaiting CAN ");
-  bool receive[2] = {};
-  while(!(receive[0] && receive[1])) {
+  bool receive[3] = {};
+  while(!(receive[0] && receive[1] && receive[2])) {
     if(can1.read(msg)) {
-      receive[0] |= msg.id != 9;
-      receive[1] |= msg.id != 10;
+      receive[0] |= (msg.id == 9);
+      receive[1] |= (msg.id == 10);
+      receive[2] |= (msg.id == 15);
     }
+    printf("\nwaiting CAN %2d %2d %2d", 9 * !receive[0], 10 * !receive[1], 15 * !receive[2]);
   }
 }
 
