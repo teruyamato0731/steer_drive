@@ -165,7 +165,7 @@ int main() {
     }
 
     // 10msごとにCAN送信
-    if(auto delta = now - std::exchange(pre, now); delta > 10ms) {
+    if(auto delta = now - pre; delta > 10ms) {
       rct::Velocity vel = {controller.stick[0] / 128.0f, controller.stick[1] / 128.0f, controller.stick[2] / 128.0f};
 
       printf("vel:");
@@ -250,6 +250,8 @@ int main() {
 
       dc_sender.send();
       sender.send();
+
+      pre = now;
     }
   }
 }
