@@ -114,7 +114,7 @@ rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
     int new_tag_pos = enc_rot / 2 / M_PI * arg(cmp[i]);
     int offset = new_tag_pos - pos;
     int r = std::round(2.0 * offset / enc_rot);
-    int drive_dir = 1 - 2 * (r % 2);
+    int drive_dir = 2 * (r % 2 == 0) - 1;
     unit[i].target_rpm = abs(cmp[i]) * 6000 * drive_dir;  // max 9000rpm
     unit[i].target_pos = new_tag_pos - r * (enc_rot / 2);
   }
