@@ -132,6 +132,9 @@ struct Controller {
       }
     }
   }
+  rct::Velocity get_vel() const {
+    return {stick[1] / 128.0f, -stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
+  }
 } controller;
 
 int main() {
@@ -166,7 +169,7 @@ int main() {
 
     // 10msごとにCAN送信
     if(auto delta = now - pre; delta > 10ms) {
-      rct::Velocity vel = {controller.stick[1] / 128.0f, -controller.stick[0] / 128.0f, controller.stick[2] / 128.0f};
+      rct::Velocity vel = controller.get_vel();
 
       steer.move(vel);
       for(auto i = 0; i < 4; ++i) {
@@ -301,7 +304,7 @@ void calibration() {
       printf("% 5d\t", e);
     }
 
-    rct::Velocity vel = {controller.stick[1] / 128.0f, controller.stick[0] / 128.0f, controller.stick[2] / 128.0f};
+    auto vel = controller.get_vel();
     printf("vel:");
     printf("%3d\t", (int)(vel.x_milli * 128));
     printf("%3d\t", (int)(vel.y_milli * 128));
