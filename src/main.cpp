@@ -263,6 +263,8 @@ void wait_can() {
   bool receive[3] = {};
   while(!(receive[0] && receive[1] && receive[2])) {
     if(can1.read(msg)) {
+      sensor_board.read(msg);
+      controller.read(msg);
       receive[0] |= (msg.id == 9);
       receive[1] |= (msg.id == 10);
       receive[2] |= (msg.id == 15);
