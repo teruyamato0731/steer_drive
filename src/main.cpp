@@ -11,7 +11,7 @@
 
 // const variable
 constexpr auto dc_id = 5;
-constexpr auto enc_rot = 1600;
+constexpr auto enc_rot = 1616;
 
 // prototype
 void wait_can();
@@ -70,12 +70,12 @@ struct DCSender {
     can1.write(CANMessage{dc_id, (uint8_t*)pwm, 8});
   }
 };
-constexpr rct::PidGain drive_gain{0.8f, 0.5f};
-constexpr rct::PidGain gain{15, 0.75};
+constexpr rct::PidGain drive_gain{1.2, 0.3};
+constexpr rct::PidGain gain{36.5, 3, 0.005};
 struct SteerUnit {
   auto calc_pid(const int rpm, const int pos, const std::chrono::microseconds& delta_time) {
-    auto drive = pid_drive.calc(target_rpm, rpm, delta_time);
-    drive = std::clamp(drive, -0.7f * C620Sender::max, 0.7f * C620Sender::max);
+    float drive = pid_drive.calc(target_rpm, rpm, delta_time);
+    drive = std::clamp(drive, -1.0f * C620Sender::max, 1.0f * C620Sender::max);
     auto steer = pid_steer.calc(target_pos, pos, delta_time);
     steer = -std::clamp(steer, -0.7f * DCSender::max, 0.7f * DCSender::max);
     return std::tuple{drive, steer};
@@ -101,7 +101,7 @@ rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
     int offset = new_tag_pos - pos;
     int r = std::round(2.0 * offset / enc_rot);
     int drive_dir = 2 * (r % 2 == 0) - 1;
-    unit[i].target_rpm = abs(cmp[i]) * 6000 * drive_dir;  // max 9000rpm
+    unit[i].target_rpm = abs(cmp[i]) * 9000 * drive_dir;  // max 9000rpm
     unit[i].target_pos = new_tag_pos - r * (enc_rot / 2);
   }
 }};
@@ -127,7 +127,7 @@ int main() {
   // put your setup code here, to run once:
   wait_can();
   // hand_calibration();
-  calibration();
+  // calibration();
 
   printf("\nsetup\n");
 
@@ -186,13 +186,13 @@ int main() {
         odom.integrate(diff);
       }
 
-      // printf("rpm:");
-      // for(auto& e: reader.data) {
-      //   printf("% 4d\t", e.rpm);
-      // }
+      // printf("vel:");
+      // printf("%3d\t", (int)(vel.x_milli * 128));
+      // printf("%3d\t", (int)(vel.y_milli * 128));
+      // printf("%3d\t", (int)(vel.ang_rad * 128));
       // printf("enc:");
-      // for(auto e: sensor_board.enc) {
-      //   printf("% 5d\t", e);
+      // for(auto i = 0; i < 4; ++i) {
+      //   printf("% 5d\t", sensor_board.enc[i]);
       // }
       // printf("zero:");
       // for(auto i = 0; i < 4; ++i) {
@@ -211,6 +211,10 @@ int main() {
         printf("% 5d\t", e);
       }
       // printf("rpm:");
+      // for(int i = 0; i < 4; ++i) {
+      //   printf("% 5d\t", reader.data[i].rpm);
+      // }
+      // printf("tag:");
       // for(auto& e: unit) {
       //   printf("% 5d\t", e.target_rpm);
       // }
@@ -242,8 +246,7 @@ int main() {
 }
 
 void set_zero_pos(const int i) {
-  constexpr int offset[4] = {-enc_rot * 85 / 360, enc_rot * 80 / 360, -enc_rot * 80 / 360, enc_rot * 80 / 360};
-  unit[i].zero_pos = (sensor_board.enc[i] - offset[i]) % enc_rot;
+  unit[i].zero_pos = sensor_board.enc[i] % enc_rot;
 }
 
 void wait_can() {
@@ -289,8 +292,8 @@ void calibration() {
     for(auto& e: dc_sender.pwm) {
       printf("%4d\t", e);
     }
-    for(auto e: sensor_board.enc) {
-      printf("% 5d\t", e);
+    for(auto i = 0; i < 4; ++i) {
+      printf("% 5d\t", sensor_board.enc[i]);
     }
 
     auto vel = controller.get_vel();
