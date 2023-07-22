@@ -32,25 +32,10 @@ InterruptIn p_i[4] = {{PC_4}, {PC_5}, {PC_6}, {PC_7}};
 struct C620Sender {
   static constexpr int max = 16384;
   int16_t pwm[8];
-
-  CANMessage fw() {
-    int16_t data[4];
-    data[0] = swap_endian(pwm[0]);
-    data[1] = swap_endian(pwm[1]);
-    data[2] = swap_endian(pwm[2]);
-    data[3] = swap_endian(pwm[3]);
-    return CANMessage{0x200, (uint8_t*)data, 8};
-  }
-  CANMessage bw() {
-    int16_t data[4];
-    data[0] = swap_endian(pwm[4]);
-    data[1] = swap_endian(pwm[5]);
-    data[2] = swap_endian(pwm[6]);
-    data[3] = swap_endian(pwm[7]);
-    return CANMessage{0x1FF, (uint8_t*)data, 8};
-  }
   bool send() {
-    return can2.write(fw()) && can2.write(bw());
+    auto buf = swap_endian(pwm);
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(buf.data());
+    return can2.write(CANMessage{0x200, data, 8}) && can2.write(CANMessage{0x199, data + 8, 8});
   }
 };
 // c620から受け取るデータ
