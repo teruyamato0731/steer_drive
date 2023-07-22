@@ -127,7 +127,7 @@ struct Controller {
     if(msg.format == CANStandard && msg.type == CANData && msg.id == 15u) {
       memcpy(this, msg.data, sizeof(Controller));
       for(auto& e: stick) {
-        e -= 127;
+        e -= 128;
         if(std::abs(e) < 15) e = 0;
       }
     }
