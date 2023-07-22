@@ -16,6 +16,7 @@ constexpr auto enc_rot = 1600;
 // prototype
 void wait_can();
 void calibration();
+void hand_calibration(int offset = 0);
 void set_zero_pos(int);
 
 // IO
@@ -125,6 +126,7 @@ struct Controller {
 int main() {
   // put your setup code here, to run once:
   wait_can();
+  // hand_calibration();
   calibration();
 
   printf("\nsetup\n");
@@ -303,4 +305,10 @@ void calibration() {
 
   std::fill(begin(dc_sender.pwm), end(dc_sender.pwm), 0);
   dc_sender.send();
+}
+
+void hand_calibration(int offset) {
+  for(int i = 0; i < 4; ++i) {
+    unit[i].zero_pos = (sensor_board.enc[i] - enc_rot * offset / 360) % enc_rot;
+  }
 }
