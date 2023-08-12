@@ -15,9 +15,6 @@ constexpr auto enc_rot = 1616;
 
 // prototype
 void wait_can();
-void calibration();
-void hand_calibration(int offset = 0);
-void set_zero_pos(int);
 
 // IO
 BufferedSerial pc{USBTX, USBRX, 115200};
@@ -25,11 +22,8 @@ CAN can1{PA_11, PA_12, (int)1e6};
 CAN can2{PB_12, PB_13, (int)1e6};
 CANMessage msg;
 Timer timer;
-InterruptIn p_i[4] = {{PC_4}, {PC_5}, {PC_6}, {PC_7}};
 
 // struct definition
-/// @tparam can global変数のみを受け取る
-/// @ref https://marycore.jp/prog/cpp/non-type-template-parameter/
 struct C620Sender {
   static constexpr int max = 16384;
   int16_t pwm[8];
@@ -126,14 +120,8 @@ struct Controller {
 int main() {
   // put your setup code here, to run once:
   wait_can();
-  // hand_calibration();
-  // calibration();
 
   printf("\nsetup\n");
-
-  for(auto i = 0; i < 4; ++i) {
-    p_i[i].disable_irq();
-  }
 
   timer.start();
   while(1) {
@@ -245,10 +233,6 @@ int main() {
   }
 }
 
-void set_zero_pos(const int i) {
-  unit[i].zero_pos = sensor_board.enc[i] % enc_rot;
-}
-
 void wait_can() {
   bool receive[3] = {};
   while(!(receive[0] && receive[1] && receive[2])) {
@@ -261,57 +245,5 @@ void wait_can() {
     }
     printf("\nwaiting CAN %2d %2d %2d", 9 * !receive[0], 10 * !receive[1], 15 * !receive[2]);
     ThisThread::sleep_for(5ms);
-  }
-}
-
-void calibration() {
-  volatile bool stop[4] = {};
-  for(auto i = 0; i < 4; ++i) {
-    p_i[i].fall([&, i] {
-      stop[i] = true;
-      set_zero_pos(i);
-    });
-  }
-  while(std::any_of(begin(stop), end(stop), [](bool x) {
-    return !x;
-  })) {
-    if(can1.read(msg)) {
-      sensor_board.read(msg);
-      controller.read(msg);
-    }
-
-    for(int i = 0; i < 4; ++i) {
-      dc_sender.pwm[i] = 0.10 * dc_sender.max * !stop[i];
-    }
-
-    printf("\ncalibrating ");
-    for(auto& e: p_i) {
-      printf("%d", e.read());
-    }
-    printf(" ");
-    for(auto& e: dc_sender.pwm) {
-      printf("%4d\t", e);
-    }
-    for(auto i = 0; i < 4; ++i) {
-      printf("% 5d\t", sensor_board.enc[i]);
-    }
-
-    auto vel = controller.get_vel();
-    printf("vel:");
-    printf("%3d\t", (int)(vel.x_milli * 128));
-    printf("%3d\t", (int)(vel.y_milli * 128));
-    printf("%3d\t", (int)(vel.ang_rad * 128));
-
-    dc_sender.send();
-    ThisThread::sleep_for(10ms);
-  }
-
-  std::fill(begin(dc_sender.pwm), end(dc_sender.pwm), 0);
-  dc_sender.send();
-}
-
-void hand_calibration(int offset) {
-  for(int i = 0; i < 4; ++i) {
-    unit[i].zero_pos = (sensor_board.enc[i] - enc_rot * offset / 360) % enc_rot;
   }
 }
