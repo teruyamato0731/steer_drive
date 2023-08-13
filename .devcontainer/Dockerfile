@@ -6,7 +6,10 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 USER vscode
-RUN python3 -c "$(curl -fsSL https://raw.githubusercontent.com/platformio/platformio/master/scripts/get-platformio.py)" \
+RUN cd \
+  && curl -fsSLO https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py \
+  && python3 get-platformio.py \
+  && rm get-platformio.py \
   && sudo $HOME/.platformio/penv/bin/pio system completion install bash --path /etc/bash_completion.d/pio \
   && echo 'export PATH=$PATH:$HOME/.platformio/penv/bin' >> ~/.bashrc
 
