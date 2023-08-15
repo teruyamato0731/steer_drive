@@ -59,6 +59,22 @@ struct : Amt21 {
     rs485.uart_transmit({address + 2, 0x75});
   }
 } amt[] = {{0x50}, {0x54}, {0x58}, {0x5C}};
+struct SteerOdom {
+  static constexpr int N = 4;
+  void integrate(std::complex<float> (&dif_val)[N]) {
+    for(int i = 0; i < N; ++i) {
+      auto rotated = dif_val[i] * std::polar<float>(1, -M_PI / N * (2 * i + 3));
+      pos_.x_milli += rotated.real();
+      pos_.y_milli += rotated.imag();
+      pos_.ang_rad += dif_val[i].real();
+    }
+  }
+  auto& get() const& {
+    return pos_;
+  }
+ private:
+  rct::Coordinate pos_;
+};
 constexpr rct::PidGain drive_gain{1.2, 0.3};
 constexpr rct::PidGain gain{36.5, 3, 0.005};
 struct SteerUnit {
@@ -80,22 +96,7 @@ SensorBoard sensor_board{9u, 10u};
 struct : C620, SendCrtp<C620, can2> {
 } dji{};
 DCSender dc_sender{};
-struct SteerOdom {
-  static constexpr int N = 4;
-  void integrate(std::complex<float> (&dif_val)[N]) {
-    for(int i = 0; i < N; ++i) {
-      auto rotated = dif_val[i] * std::polar<float>(1, -M_PI / N * (2 * i + 3));
-      pos_.x_milli += rotated.real();
-      pos_.y_milli += rotated.imag();
-      pos_.ang_rad += dif_val[i].real();
-    }
-  }
-  auto& get() const& {
-    return pos_;
-  }
- private:
-  rct::Coordinate pos_;
-} odom{};
+SteerOdom odom{};
 SteerUnit unit[4] = {};
 rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
   for(int i = 0; i < 4; ++i) {
