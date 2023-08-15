@@ -30,11 +30,11 @@ CANMessage msg;
 Timer timer;
 
 // struct definition
-struct DCSender {
+struct DCSender : SendCrtp<DCSender, can1> {
   static constexpr int max = INT16_MAX * 0.7;
   int16_t pwm[4];
-  void send() {
-    can1.write(CANMessage{dc_id, (uint8_t*)pwm, 8});
+  auto msg() {
+    return CANMessage{dc_id, (uint8_t*)pwm, 8};
   }
 };
 struct : Amt21 {
