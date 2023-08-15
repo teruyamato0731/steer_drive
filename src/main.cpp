@@ -228,13 +228,6 @@ int main() {
       //   printf("% 5d\t", sender.pwm[i]);
       // }
 
-      // printf("pos:");
-      // printf("% 4d\t", sensor_board.enc[2] - unit[2].zero_pos);
-      // printf("tag:");
-      // printf("% 5d\t", unit[2].target_pos);
-      // printf(" dc:");
-      // printf("% 5d\t", dc_sender.pwm[2]);
-
       printf("est:");
       printf("%3d\t", (int)odom.get().x_milli);
       printf("%3d\t", (int)odom.get().y_milli);
