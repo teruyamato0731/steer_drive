@@ -1,6 +1,8 @@
 #ifndef RCT_AMT21_H_
 #define RCT_AMT21_H_
 
+#include <cstdint>
+
 struct Amt21 {
   static constexpr int rotate = 4096;
 
