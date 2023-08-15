@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y \
   bash-completion \
   && rm -rf /var/lib/apt/lists/*
 
-USER vscode
 RUN python3 -m pip install --no-cache-dir -U \
   platformio \
   jinja2 \
@@ -15,4 +14,4 @@ RUN python3 -m pip install --no-cache-dir -U \
   prettytable \
   six \
   jsonschema
-RUN PATH=$HOME/.local/bin:$PATH pio system completion install bash
+RUN pio system completion install bash

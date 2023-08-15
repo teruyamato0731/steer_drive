@@ -1,6 +1,4 @@
 {
-  "platformio-ide.customPATH": "/home/vscode/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-  "platformio-ide.useBuiltinPIOCore": false,
   "files.associations": {
     "*.json": "jsonc",
     "*.dox": "markdown",

@@ -29,6 +29,9 @@
 	"remoteUser": "vscode",
 	"customizations": {
 		"vscode": {
+			"settings": {
+				"platformio-ide.useBuiltinPIOCore": false
+			},
 			"extensions": [
 				"platformio.platformio-ide"
 			]
