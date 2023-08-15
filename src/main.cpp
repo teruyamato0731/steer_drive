@@ -128,18 +128,14 @@ struct Controller {
 
 int main() {
   // put your setup code here, to run once:
-  wait_can();
-
   printf("\nsetup\n");
-
-  printf("enc reset... ");
+  wait_can();
+  printf("enc resetting...\n");
   for(auto& e: amt) e.send_read_pos();
-  printf("done\n");
 
   timer.start();
   while(1) {
     auto now = timer.elapsed_time();
-    static auto pre = now - 10ms;
     static auto pre_alive = now - 100ms;
 
     // CANMessageの受取り
