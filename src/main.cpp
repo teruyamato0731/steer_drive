@@ -8,10 +8,11 @@
 #include <utility>
 
 #include "Amt21.h"
+#include "C620.h"
 #include "PollWait.h"
 #include "Rs485.h"
+#include "SendCrtp.h"
 #include "SensorBoard.h"
-#include "swap_endian.h"
 
 // const variable
 constexpr auto dc_id = 5;
@@ -29,39 +30,6 @@ CANMessage msg;
 Timer timer;
 
 // struct definition
-struct C620Sender {
-  static constexpr int max = 16384;
-  int16_t pwm[8];
-  bool send() {
-    auto buf = swap_endian(pwm);
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(buf.data());
-    return can2.write(CANMessage{0x200, data, 8}) && can2.write(CANMessage{0x199, data + 8, 8});
-  }
-};
-// c620から受け取るデータ
-struct C620Reader {
-  // index operator
-  void read(const CANMessage& msg) {
-    if(msg.format == CANStandard && msg.type == CANData && msg.len == 8 && 0x200 <= msg.id && msg.id <= 0x208) {
-      data[msg.id - 0x201u].set(msg.data);
-    }
-  }
-  //C620ReadVal
-  struct {
-    uint16_t angle;
-    int16_t rpm;
-    int16_t ampere;
-    uint8_t temp;
-    uint8_t padding;
-
-    void set(const uint8_t data[8]) {
-      angle = uint16_t(data[0] << 8 | data[1]);
-      rpm = int16_t(data[2] << 8 | data[3]);
-      ampere = int16_t(data[4] << 8 | data[5]);
-      temp = data[6];
-    }
-  } data[8];
-};
 struct DCSender {
   static constexpr int max = INT16_MAX * 0.7;
   int16_t pwm[4];
@@ -96,7 +64,7 @@ constexpr rct::PidGain gain{36.5, 3, 0.005};
 struct SteerUnit {
   auto calc_pid(const int rpm, const int pos, const std::chrono::microseconds& delta_time) {
     float drive = pid_drive.calc(target_rpm, rpm, delta_time);
-    drive = std::clamp(drive, -1.0f * C620Sender::max, 1.0f * C620Sender::max);
+    drive = std::clamp(drive, -1.0f * C620::max, 1.0f * C620::max);
     auto steer = pid_steer.calc(target_pos, pos, delta_time);
     steer = -std::clamp(steer, -0.7f * DCSender::max, 0.7f * DCSender::max);
     return std::tuple{drive, steer};
@@ -109,8 +77,8 @@ struct SteerUnit {
 
 // Control
 SensorBoard sensor_board{9u, 10u};
-C620Reader reader{};
-C620Sender sender{};
+struct : C620, SendCrtp<C620, can2> {
+} dji{};
 DCSender dc_sender{};
 struct SteerOdom {
   static constexpr int N = 4;
@@ -179,7 +147,7 @@ int main() {
       controller.read(msg);
     }
     if(can2.read(msg)) {
-      reader.read(msg);
+      dji.read(msg);
       if(0x200u < msg.id && msg.id <= 0x208u) {
         // C620の生存CK
         pre_alive = now;
@@ -200,10 +168,10 @@ int main() {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
           // TODO encの更新に合わせる？ delta timeを
-          std::tie(sender.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(reader.data[i].rpm, amt[i].get_pos(), delta);
+          std::tie(dji.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(dji.data[i].rpm, amt[i].get_pos(), delta);
         } else {
           // fail時, 出力を1/2倍していく
-          sender.pwm[i] /= 2;
+          dji.pwm[i] /= 2;
           dc_sender.pwm[i] /= 2;
           // I値を消す
           unit[i].pid_drive.refresh();
@@ -215,7 +183,7 @@ int main() {
         // Odom で自己位置を推定
         std::complex<float> diff[4];
         for(auto i = 0; i < 4; ++i) {
-          float rho = reader.data[i].rpm * delta.count() * 1e-6;
+          float rho = dji.data[i].rpm * delta.count() * 1e-6;
           float theta = 2 * M_PI / enc_rot * amt[i].pos;
           diff[i] = std::polar(rho, theta);
         }
@@ -274,7 +242,7 @@ int main() {
       printf("\n");
 
       dc_sender.send();
-      sender.send();
+      dji.send();
     }
   }
 }
