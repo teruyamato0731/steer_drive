@@ -1,3 +1,4 @@
+#include <Kernel.h>
 #include <Pid.h>
 #include <SteerDrive.h>
 #include <mbed.h>
@@ -7,6 +8,7 @@
 #include <utility>
 
 #include "Amt21.h"
+#include "PollWait.h"
 #include "Rs485.h"
 #include "SensorBoard.h"
 #include "swap_endian.h"
@@ -190,7 +192,7 @@ int main() {
     }
 
     // 10msごとにCAN送信
-    if(auto delta = now - pre; delta > 10ms) {
+    if(static PollWait<Kernel::Clock> wait{}; auto delta = wait(10ms)) {
       rct::Velocity vel = controller.get_vel();
 
       steer.move(vel);
@@ -273,8 +275,6 @@ int main() {
 
       dc_sender.send();
       sender.send();
-
-      pre = now;
     }
   }
 }
