@@ -1,9 +1,9 @@
-#include <Odom.h>
 #include <Pid.h>
 #include <SteerDrive.h>
 #include <mbed.h>
 
 #include <algorithm>
+#include <complex>
 #include <utility>
 
 #include "Amt21.h"
@@ -110,7 +110,22 @@ SensorBoard sensor_board{9u, 10u};
 C620Reader reader{};
 C620Sender sender{};
 DCSender dc_sender{};
-rct::Odom<4> odom{};
+struct SteerOdom {
+  static constexpr int N = 4;
+  void integrate(std::complex<float> (&dif_val)[N]) {
+    for(int i = 0; i < N; ++i) {
+      auto rotated = dif_val[i] * std::polar<float>(1, -M_PI / N * (2 * i + 3));
+      pos_.x_milli += rotated.real();
+      pos_.y_milli += rotated.imag();
+      pos_.ang_rad += dif_val[i].real();
+    }
+  }
+  auto& get() const& {
+    return pos_;
+  }
+ private:
+  rct::Coordinate pos_;
+} odom{};
 SteerUnit unit[4] = {};
 rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
   for(int i = 0; i < 4; ++i) {
@@ -196,9 +211,11 @@ int main() {
       // C620が生存なら
       if(now - pre_alive < 100ms) {
         // Odom で自己位置を推定
-        int diff[4];
+        std::complex<float> diff[4];
         for(auto i = 0; i < 4; ++i) {
-          diff[i] = reader.data[i].rpm * delta.count();
+          float rho = reader.data[i].rpm * delta.count() * 1e-6;
+          float theta = 2 * M_PI / enc_rot * amt[i].pos;
+          diff[i] = std::polar(rho, theta);
         }
         odom.integrate(diff);
       }
