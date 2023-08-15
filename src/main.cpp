@@ -6,18 +6,21 @@
 #include <algorithm>
 #include <utility>
 
+#include "Amt21.h"
+#include "Rs485.h"
 #include "SensorBoard.h"
 #include "swap_endian.h"
 
 // const variable
 constexpr auto dc_id = 5;
-constexpr auto enc_rot = 1616;
+constexpr auto enc_rot = Amt21::rotate * 3;
 
 // prototype
 void wait_can();
 
 // IO
 BufferedSerial pc{USBTX, USBRX, 115200};
+Rs485 rs485{PB_6, PA_10, (int)2e6, PC_0};
 CAN can1{PA_11, PA_12, (int)1e6};
 CAN can2{PB_12, PB_13, (int)1e6};
 CANMessage msg;
@@ -64,6 +67,28 @@ struct DCSender {
     can1.write(CANMessage{dc_id, (uint8_t*)pwm, 8});
   }
 };
+struct : Amt21 {
+  // request
+  bool send_read_pos() {
+    rs485.uart_transmit({address});
+    if(uint16_t receive; rs485.uart_receive(&receive, sizeof(receive), 10ms)) {
+      read_pos(receive);
+      return true;
+    }
+    return false;
+  }
+  bool send_read_turns() {
+    rs485.uart_transmit({address + 1});
+    if(uint16_t receive; rs485.uart_receive(&receive, sizeof(receive), 10ms)) {
+      read_turns(receive);
+      return true;
+    }
+    return false;
+  }
+  void send_reset() {
+    rs485.uart_transmit({address + 2, 0x75});
+  }
+} amt[] = {{0x50}, {0x54}, {0x58}, {0x5C}};
 constexpr rct::PidGain drive_gain{1.2, 0.3};
 constexpr rct::PidGain gain{36.5, 3, 0.005};
 struct SteerUnit {
@@ -76,7 +101,6 @@ struct SteerUnit {
   }
   rct::Pid<float> pid_drive = {drive_gain};
   rct::Pid<float> pid_steer = {gain};
-  int zero_pos;
   int target_rpm;
   int target_pos;
 };
@@ -90,9 +114,8 @@ rct::Odom<4> odom{};
 SteerUnit unit[4] = {};
 rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
   for(int i = 0; i < 4; ++i) {
-    int pos = sensor_board.enc[i] - unit[i].zero_pos;
     int new_tag_pos = enc_rot / 2 / M_PI * arg(cmp[i]);
-    int offset = new_tag_pos - pos;
+    int offset = new_tag_pos - amt[i].get_pos();
     int r = std::round(2.0 * offset / enc_rot);
     int drive_dir = 2 * (r % 2 == 0) - 1;
     unit[i].target_rpm = abs(cmp[i]) * 9000 * drive_dir;  // max 9000rpm
@@ -123,6 +146,10 @@ int main() {
 
   printf("\nsetup\n");
 
+  printf("enc reset... ");
+  for(auto& e: amt) e.send_read_pos();
+  printf("done\n");
+
   timer.start();
   while(1) {
     auto now = timer.elapsed_time();
@@ -142,6 +169,11 @@ int main() {
       }
     }
 
+    for(auto& e: amt) {
+      e.send_read_pos();
+      e.send_read_turns();
+    }
+
     // 10msごとにCAN送信
     if(auto delta = now - pre; delta > 10ms) {
       rct::Velocity vel = controller.get_vel();
@@ -150,11 +182,8 @@ int main() {
       for(auto i = 0; i < 4; ++i) {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
-          // reader[0]~[3] を使用するため djiモータのIDを1~4にしておく
-          // sensor_board の 0~3に接続
-          int pos = sensor_board.enc[i] - unit[i].zero_pos;
           // TODO encの更新に合わせる？ delta timeを
-          std::tie(sender.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(reader.data[i].rpm, pos, delta);
+          std::tie(sender.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(reader.data[i].rpm, amt[i].get_pos(), delta);
         } else {
           // fail時, 出力を1/2倍していく
           sender.pwm[i] /= 2;
@@ -188,7 +217,7 @@ int main() {
       // }
       printf("pos:");
       for(auto i = 0; i < 4; ++i) {
-        printf("% 4d\t", sensor_board.enc[i] - unit[i].zero_pos);
+        printf("% 4d\t", amt[i].get_pos());
       }
       printf("tag:");
       for(auto& e: unit) {
