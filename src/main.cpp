@@ -7,7 +7,6 @@
 #include <complex>
 #include <utility>
 
-#include "Amt21.h"
 #include "C620.h"
 #include "PollWait.h"
 #include "Rs485.h"
@@ -16,7 +15,7 @@
 
 // const variable
 constexpr auto dc_id = 5;
-constexpr auto enc_rot = Amt21::rotate * 3;
+constexpr int enc_rot = 12934;
 
 // prototype
 void wait_can();
@@ -37,26 +36,41 @@ struct DCSender : SendCrtp<DCSender, can1> {
     return CANMessage{dc_id, (uint8_t*)pwm, 8};
   }
 };
-struct : Amt21 {
-  // request
-  bool send_read_pos() {
+struct Amt21 {
+  static constexpr int rotate = 4096;
+
+  uint8_t address;
+  int32_t pos;
+  uint16_t pre_pos;
+
+  bool request_pos() {
     rs485.uart_transmit({address});
-    if(uint16_t receive; rs485.uart_receive(&receive, sizeof(receive), 10ms)) {
-      read_pos(receive);
+    if(uint16_t now_pos; rs485.uart_receive(&now_pos, sizeof(now_pos), 10ms) && is_valid(now_pos)) {
+      now_pos = (now_pos & 0x3fff) >> 2;
+      int16_t diff = now_pos - pre_pos;
+      if(diff > rotate / 2) {
+        diff -= rotate;
+      } else if(diff < -rotate / 2) {
+        diff += rotate;
+      }
+      pos += diff;
+      pre_pos = now_pos;
       return true;
     }
     return false;
   }
-  bool send_read_turns() {
-    rs485.uart_transmit({address + 1});
-    if(uint16_t receive; rs485.uart_receive(&receive, sizeof(receive), 10ms)) {
-      read_turns(receive);
-      return true;
-    }
-    return false;
+  void request_reset() {
+    rs485.uart_transmit({int16_t(address + 2), 0x75});
   }
-  void send_reset() {
-    rs485.uart_transmit({address + 2, 0x75});
+  static bool is_valid(uint16_t raw_data) {
+    bool k1 = raw_data >> 15;
+    bool k0 = raw_data >> 14 & 1;
+    raw_data <<= 2;
+    do {
+      k1 ^= raw_data & 0x8000;          // even
+      k0 ^= (raw_data <<= 1) & 0x8000;  // odd
+    } while(raw_data <<= 1);
+    return k0 && k1;
   }
 } amt[] = {{0x50}, {0x54}, {0x58}, {0x5C}};
 struct SteerOdom {
@@ -76,7 +90,7 @@ struct SteerOdom {
   rct::Coordinate pos_;
 };
 constexpr rct::PidGain drive_gain{1.2, 0.3};
-constexpr rct::PidGain gain{36.5, 3, 0.005};
+constexpr rct::PidGain gain{3.65, 0.85, 0.0005};
 struct SteerUnit {
   auto calc_pid(const int rpm, const int pos, const std::chrono::microseconds& delta_time) {
     float drive = pid_drive.calc(target_rpm, rpm, delta_time);
@@ -101,7 +115,7 @@ SteerUnit unit[4] = {};
 rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
   for(int i = 0; i < 4; ++i) {
     int new_tag_pos = enc_rot / 2 / M_PI * arg(cmp[i]);
-    int offset = new_tag_pos - amt[i].get_pos();
+    int offset = new_tag_pos - (-amt[i].pos);
     int r = std::round(2.0 * offset / enc_rot);
     int drive_dir = 2 * (r % 2 == 0) - 1;
     unit[i].target_rpm = abs(cmp[i]) * 9000 * drive_dir;  // max 9000rpm
@@ -122,7 +136,7 @@ struct Controller {
     }
   }
   rct::Velocity get_vel() const {
-    return {stick[1] / 128.0f, -stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
+    return {-stick[1] / 128.0f, stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
   }
 } controller;
 
@@ -130,8 +144,6 @@ int main() {
   // put your setup code here, to run once:
   printf("\nsetup\n");
   wait_can();
-  printf("enc resetting...\n");
-  for(auto& e: amt) e.send_read_pos();
 
   timer.start();
   while(1) {
@@ -152,8 +164,7 @@ int main() {
     }
 
     for(auto& e: amt) {
-      e.send_read_pos();
-      e.send_read_turns();
+      e.request_pos();
     }
 
     // 10msごとにCAN送信
@@ -165,7 +176,7 @@ int main() {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
           // TODO encの更新に合わせる？ delta timeを
-          std::tie(dji.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(dji.data[i].rpm, amt[i].get_pos(), delta);
+          std::tie(dji.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(dji.data[i].rpm, -amt[i].pos, delta);
         } else {
           // fail時, 出力を1/2倍していく
           dji.pwm[i] /= 2;
@@ -193,15 +204,11 @@ int main() {
       // printf("%3d\t", (int)(vel.ang_rad * 128));
       // printf("enc:");
       // for(auto i = 0; i < 4; ++i) {
-      //   printf("% 5d\t", sensor_board.enc[i]);
-      // }
-      // printf("zero:");
-      // for(auto i = 0; i < 4; ++i) {
-      //   printf("% 5d\t", unit[i].zero_pos);
+      //   printf("% 4d\t", amt[i].pre_pos);
       // }
       printf("pos:");
       for(auto i = 0; i < 4; ++i) {
-        printf("% 4d\t", amt[i].get_pos());
+        printf("% 6d\t", -amt[i].pos);
       }
       printf("tag:");
       for(auto& e: unit) {
