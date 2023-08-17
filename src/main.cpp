@@ -1,3 +1,4 @@
+#include <ChassisPid.h>
 #include <Kernel.h>
 #include <Pid.h>
 #include <SteerDrive.h>
@@ -85,8 +86,12 @@ struct SteerOdom {
       pos_.ang_rad += dif_val[i].real();
     }
   }
-  auto& get() const& {
-    return pos_;
+  auto get() const& {
+    auto pos = pos_;
+    pos.x_milli /= one_meter;
+    pos.y_milli /= one_meter;
+    pos.ang_rad *= -2 * M_PI / one_rotate;
+    return pos;
   }
  private:
   rct::Coordinate pos_;
@@ -114,7 +119,7 @@ struct : C620, SendCrtp<C620, can2> {
 DCSender dc_sender{};
 SteerOdom odom{};
 SteerUnit unit[4] = {};
-rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
+auto f = [](std::array<std::complex<float>, 4> cmp) {
   for(int i = 0; i < 4; ++i) {
     int new_tag_pos = enc_rot / 2 / M_PI * arg(cmp[i]);
     int offset = new_tag_pos - (-amt[i].pos);
@@ -123,7 +128,8 @@ rct::SteerDrive<4> steer{[](std::array<std::complex<float>, 4> cmp) {
     unit[i].target_rpm = abs(cmp[i]) * 9000 * drive_dir;  // max 9000rpm
     unit[i].target_pos = new_tag_pos - r * (enc_rot / 2);
   }
-}};
+};
+rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.5, 1.2}};
 struct Controller {
   uint8_t button[2];
   int8_t stick[4];  // LX,LY,RX,RY
@@ -173,8 +179,6 @@ int main() {
     if(static PollWait<Kernel::Clock> wait{}; auto delta = wait(10ms)) {
       rct::Velocity vel = controller.get_vel();
 
-      steer.move(vel, odom.get().ang_rad + M_PI / 2);
-
       // C620が生存なら
       if(now - pre_alive < 100ms) {
         // Odom で自己位置を推定
@@ -192,6 +196,20 @@ int main() {
       auto now_vel = -1 * (now_coo - pre_coo) / delta;
       pre_coo = now_coo;
 
+      now_vel.x_milli *= -127.0 / 285;
+      now_vel.y_milli *= 127.0 / 285;
+      now_vel.ang_rad *= 96.0 / 431;
+
+      if(vel != rct::Velocity{}) {
+        steer.pid_move(vel, now_vel, delta, odom.get().ang_rad + M_PI / 2);
+      } else {
+        printf("    ");
+        printf("    ");
+        printf("    ");
+        steer.move(vel, odom.get().ang_rad + M_PI / 2);
+        steer.vel_pid_.refresh();
+      }
+
       for(auto i = 0; i < 4; ++i) {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
@@ -207,26 +225,29 @@ int main() {
         }
       }
 
-      // printf("vel:");
-      // printf("%3d\t", (int)(vel.x_milli * 128));
-      // printf("%3d\t", (int)(vel.y_milli * 128));
-      // printf("%3d\t", (int)(vel.ang_rad * 128));
       // printf("enc:");
       // for(auto i = 0; i < 4; ++i) {
       //   printf("% 4d\t", amt[i].pre_pos);
       // }
       printf("pos:");
       for(auto i = 0; i < 4; ++i) {
-        printf("% 6d\t", -amt[i].pos);
+        printf("% 6ld ", -amt[i].pos);
       }
-      printf("tag:");
-      for(auto& e: unit) {
-        printf("% 5d\t", e.target_pos);
-      }
-      printf(" dc:");
-      for(auto& e: dc_sender.pwm) {
-        printf("% 5d\t", e);
-      }
+
+      printf("now_vel:");
+      printf("% 4d ", (int)(now_vel.x_milli * 128));
+      printf("% 4d ", (int)(now_vel.y_milli * 128));
+      printf("% 4d ", (int)(now_vel.ang_rad * 100));
+
+      printf("vel:");
+      printf("% 4d ", (int)(vel.x_milli * 128));
+      printf("% 4d ", (int)(vel.y_milli * 128));
+      printf("% 4d ", (int)(vel.ang_rad * 128));
+
+      // printf("tag:");
+      // for(auto& e: unit) {
+      //   printf("% 5d\t", e.target_pos);
+      // }
       // printf("rpm:");
       // for(int i = 0; i < 4; ++i) {
       //   printf("% 5d\t", reader.data[i].rpm);
@@ -235,15 +256,20 @@ int main() {
       // for(auto& e: unit) {
       //   printf("% 5d\t", e.target_rpm);
       // }
-      // printf(" ac:");
-      // for(int i = 0; i < 4; ++i) {
-      //   printf("% 5d\t", sender.pwm[i]);
-      // }
 
       printf("est:");
-      printf("% 7d\t", (int)odom.get().x_milli);
-      printf("% 7d\t", (int)odom.get().y_milli);
-      printf("% 7d\t", (int)odom.get().ang_rad);
+      printf("% 7d ", int(odom.get().x_milli * 1e3));
+      printf("% 7d ", int(odom.get().y_milli * 1e3));
+      printf("% 5d ", int(odom.get().ang_rad * 1e3));
+
+      printf(" dc:");
+      for(auto& e: dc_sender.pwm) {
+        printf("% 5d ", e);
+      }
+      printf(" ac:");
+      for(int i = 0; i < 4; ++i) {
+        printf("% 5d ", dji.pwm[i]);
+      }
 
       printf("\n");
 
