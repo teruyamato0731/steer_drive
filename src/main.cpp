@@ -62,7 +62,7 @@ struct Amt21 {
     return false;
   }
   void request_reset() {
-    rs485.uart_transmit({int16_t(address + 2), 0x75});
+    rs485.uart_transmit({uint8_t(address + 2), 0x75});
   }
   static bool is_valid(uint16_t raw_data) {
     bool k1 = raw_data >> 15;
