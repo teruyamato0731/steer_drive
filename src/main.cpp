@@ -173,7 +173,7 @@ int main() {
     if(static PollWait<Kernel::Clock> wait{}; auto delta = wait(10ms)) {
       rct::Velocity vel = controller.get_vel();
 
-      steer.move(vel);
+      steer.move(vel, odom.get().ang_rad + M_PI / 2);
 
       // C620が生存なら
       if(now - pre_alive < 100ms) {
