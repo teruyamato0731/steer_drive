@@ -16,6 +16,8 @@
 // const variable
 constexpr auto dc_id = 5;
 constexpr int enc_rot = 12934;
+constexpr int one_rotate = 363;
+constexpr int one_meter = 110;
 
 // prototype
 void wait_can();
@@ -172,6 +174,19 @@ int main() {
       rct::Velocity vel = controller.get_vel();
 
       steer.move(vel);
+
+      // C620が生存なら
+      if(now - pre_alive < 100ms) {
+        // Odom で自己位置を推定
+        std::complex<float> diff[4];
+        for(auto i = 0; i < 4; ++i) {
+          float rho = dji.data[i].rpm * delta.count() * 1e-5;
+          float theta = 2 * M_PI / enc_rot * amt[i].pos;
+          diff[i] = std::polar(rho, theta);
+        }
+        odom.integrate(diff);
+      }
+
       for(auto i = 0; i < 4; ++i) {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
@@ -185,17 +200,6 @@ int main() {
           unit[i].pid_drive.refresh();
           unit[i].pid_steer.refresh();
         }
-      }
-      // C620が生存なら
-      if(now - pre_alive < 100ms) {
-        // Odom で自己位置を推定
-        std::complex<float> diff[4];
-        for(auto i = 0; i < 4; ++i) {
-          float rho = dji.data[i].rpm * delta.count() * 1e-6;
-          float theta = 2 * M_PI / enc_rot * amt[i].pos;
-          diff[i] = std::polar(rho, theta);
-        }
-        odom.integrate(diff);
       }
 
       // printf("vel:");
@@ -232,9 +236,9 @@ int main() {
       // }
 
       printf("est:");
-      printf("%3d\t", (int)odom.get().x_milli);
-      printf("%3d\t", (int)odom.get().y_milli);
-      printf("%3d\t", (int)odom.get().ang_rad);
+      printf("% 7d\t", (int)odom.get().x_milli);
+      printf("% 7d\t", (int)odom.get().y_milli);
+      printf("% 7d\t", (int)odom.get().ang_rad);
 
       printf("\n");
 
