@@ -187,6 +187,11 @@ int main() {
         odom.integrate(diff);
       }
 
+      static auto pre_coo = rct::Coordinate{};
+      auto now_coo = odom.get();
+      auto now_vel = -1 * (now_coo - pre_coo) / delta;
+      pre_coo = now_coo;
+
       for(auto i = 0; i < 4; ++i) {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
