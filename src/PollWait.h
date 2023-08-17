@@ -15,7 +15,7 @@ struct PollWait {
   }
  private:
   struct Result : Clock::duration {
-    operator bool() const {
+    explicit operator bool() const {
       return elapsed;
     }
     bool elapsed;
