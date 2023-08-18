@@ -221,19 +221,18 @@ int main() {
       static auto pre_coo = rct::Coordinate{};
       auto now_coo = odom.get();
       auto now_vel = -1 * (now_coo - pre_coo) / delta;
+      float est_vel_rad = (now_coo - pre_coo).ang_rad * 3 / 4;
       pre_coo = now_coo;
 
       now_vel.x_milli *= -127.0 / 285;
       now_vel.y_milli *= 127.0 / 285;
       now_vel.ang_rad *= 96.0 / 431;
 
+      float offset_rad = odom.get().ang_rad + M_PI / 2 + est_vel_rad;
       if(vel != rct::Velocity{}) {
-        steer.pid_move(vel, now_vel, delta, odom.get().ang_rad + M_PI / 2);
+        steer.pid_move(vel, now_vel, delta, offset_rad);
       } else {
-        printf("    ");
-        printf("    ");
-        printf("    ");
-        steer.move(vel, odom.get().ang_rad + M_PI / 2);
+        steer.move(vel, offset_rad);
         steer.refresh();
       }
 
