@@ -127,7 +127,13 @@ auto f = [](std::array<std::complex<float>, 4> cmp) {
     int r = std::round(2.0 * offset / enc_rot);
     int drive_dir = 2 * (r % 2 == 0) - 1;
     unit[i].target_rpm = abs(cmp[i]) * 9000 * drive_dir;  // max 9000rpm
-    unit[i].target_pos = new_tag_pos - r * (enc_rot / 2);
+    new_tag_pos = new_tag_pos - r * (enc_rot / 2);
+    if(cmp[i] != 0.0f) {
+      unit[i].target_pos = new_tag_pos;
+    } else {
+      auto diff = new_tag_pos - unit[i].target_pos;
+      unit[i].target_pos += 0.5 * diff;
+    }
   }
 };
 rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.5, 1.2}};
