@@ -16,11 +16,12 @@
 
 // const variable
 constexpr auto dc_id = 5;
-constexpr int enc_rot = 12934;
-constexpr int one_rotate = 363;
-constexpr int one_meter = 110;
+constexpr int enc_rot = 12934;   // steer unit 1周あたりエンコーダが読むパルス数
+constexpr int one_rotate = 363;  // steer 1周あたりのオドメトリ
+constexpr int one_meter = 110;   // steer 1mあたりのオドメトリ
 
 // prototype
+/// @brief センサ基板とコントローラの入力を待機する
 void wait_can();
 
 // IO
@@ -203,6 +204,7 @@ int main() {
       }
     }
 
+    // アブソ読み取り
     for(auto& e: amt) {
       e.request_pos();
     }
@@ -223,16 +225,19 @@ int main() {
         odom.integrate(diff);
       }
 
+      // 変位より速度を計算
       static auto pre_coo = rct::Coordinate{};
       auto now_coo = odom.get();
       auto now_vel = -1 * (now_coo - pre_coo) / delta;
       float est_vel_rad = (now_coo - pre_coo).ang_rad * 3 / 4;
       pre_coo = now_coo;
 
+      // ±1の範囲にスケール
       now_vel.x_milli *= -127.0 / 285;
       now_vel.y_milli *= 127.0 / 285;
       now_vel.ang_rad *= 96.0 / 431;
 
+      // 姿勢角 = 現在の角度 + 予測変位
       float offset_rad = odom.get().ang_rad + M_PI / 2 + est_vel_rad;
       if(vel != rct::Velocity{}) {
         steer.pid_move(vel, now_vel, delta, offset_rad);
