@@ -207,7 +207,7 @@ int main() {
         printf("    ");
         printf("    ");
         steer.move(vel, odom.get().ang_rad + M_PI / 2);
-        steer.vel_pid_.refresh();
+        steer.refresh();
       }
 
       for(auto i = 0; i < 4; ++i) {
