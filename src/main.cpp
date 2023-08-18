@@ -149,16 +149,24 @@ rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.5, 1.2}};
 //   }
 // } controller;
 struct Controller {
-  rct::Velocity vel {0, 0, 0};
+  rct::Velocity vel = {};
 
   void read(const CANMessage& msg) {
     if(msg.format == CANStandard && msg.type == CANData && msg.id == Command::ID && msg.len == 8) {
       Command cmd;
       memcpy(&cmd, msg.data, sizeof(Command));
-      switch (cmd.tag) {
+      switch(cmd.tag) {
         case Command::Tag::SET_TARGET_VELOCITY: {
-          vel = {cmd.set_target_velocity.vx, cmd.set_target_velocity.vy, cmd.set_target_velocity.ang_vel * 1e-3};
+          vel = {cmd.set_target_velocity.vx * 1e-3f, cmd.set_target_velocity.vy * 1e-3f,
+                 cmd.set_target_velocity.ang_vel * 1e-3f};
+          if(std::hypot(vel.x_milli, vel.y_milli) < 0.1) {
+            vel.x_milli = 0;
+            vel.y_milli = 0;
+          }
+          if(std::abs(vel.ang_rad) < 0.1) vel.ang_rad = 0;
         } break;
+        default:
+          break;
       }
     }
   }
@@ -254,14 +262,14 @@ int main() {
       }
 
       printf("now_vel:");
-      printf("% 4d ", (int)(now_vel.x_milli * 128));
-      printf("% 4d ", (int)(now_vel.y_milli * 128));
-      printf("% 4d ", (int)(now_vel.ang_rad * 100));
+      printf("% 4d ", (int)(now_vel.x_milli * 1e2));
+      printf("% 4d ", (int)(now_vel.y_milli * 1e2));
+      printf("% 4d ", (int)(now_vel.ang_rad * 1e2));
 
       printf("vel:");
-      printf("% 4d ", (int)(vel.x_milli * 128));
-      printf("% 4d ", (int)(vel.y_milli * 128));
-      printf("% 4d ", (int)(vel.ang_rad * 128));
+      printf("% 4d ", (int)(vel.x_milli * 1e2));
+      printf("% 4d ", (int)(vel.y_milli * 1e2));
+      printf("% 4d ", (int)(vel.ang_rad * 1e2));
 
       // printf("tag:");
       // for(auto& e: unit) {
