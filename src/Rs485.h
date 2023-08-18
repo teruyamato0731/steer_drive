@@ -1,7 +1,6 @@
 #ifndef RCT_RS485_H_
 #define RCT_RS485_H_
 
-#include <Kernel.h>
 #include <mbed.h>
 
 struct Rs485 {
