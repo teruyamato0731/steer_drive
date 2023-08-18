@@ -13,6 +13,7 @@
 #include "Rs485.h"
 #include "SendCrtp.h"
 #include "SensorBoard.h"
+#include "protocol.h"
 
 // const variable
 constexpr auto dc_id = 5;
@@ -130,21 +131,39 @@ auto f = [](std::array<std::complex<float>, 4> cmp) {
   }
 };
 rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.5, 1.2}};
+// struct Controller {
+//   uint8_t button[2];
+//   int8_t stick[4];  // LX,LY,RX,RY
+
+//   void read(const CANMessage& msg) {
+//     if(msg.format == CANStandard && msg.type == CANData && msg.id == 15u) {
+//       memcpy(this, msg.data, sizeof(Controller));
+//       for(auto& e: stick) {
+//         e -= 128;
+//         if(std::abs(e) < 15) e = 0;
+//       }
+//     }
+//   }
+//   rct::Velocity get_vel() const {
+//     return {stick[1] / 128.0f, -stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
+//   }
+// } controller;
 struct Controller {
-  uint8_t button[2];
-  int8_t stick[4];  // LX,LY,RX,RY
+  rct::Velocity vel {0, 0, 0};
 
   void read(const CANMessage& msg) {
-    if(msg.format == CANStandard && msg.type == CANData && msg.id == 15u) {
-      memcpy(this, msg.data, sizeof(Controller));
-      for(auto& e: stick) {
-        e -= 128;
-        if(std::abs(e) < 15) e = 0;
+    if(msg.format == CANStandard && msg.type == CANData && msg.id == Command::ID && msg.len == 8) {
+      Command cmd;
+      memcpy(&cmd, msg.data, sizeof(Controller));
+      switch (cmd.tag) {
+        case Command::Tag::SET_TARGET_VELOCITY: {
+          vel = {cmd.set_target_velocity.vx, cmd.set_target_velocity.vy, cmd.set_target_velocity.ang_vel * 1e-3};
+        } break;
       }
     }
   }
   rct::Velocity get_vel() const {
-    return {-stick[1] / 128.0f, stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
+    return vel;
   }
 } controller;
 
