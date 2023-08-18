@@ -154,7 +154,7 @@ struct Controller {
   void read(const CANMessage& msg) {
     if(msg.format == CANStandard && msg.type == CANData && msg.id == Command::ID && msg.len == 8) {
       Command cmd;
-      memcpy(&cmd, msg.data, sizeof(Controller));
+      memcpy(&cmd, msg.data, sizeof(Command));
       switch (cmd.tag) {
         case Command::Tag::SET_TARGET_VELOCITY: {
           vel = {cmd.set_target_velocity.vx, cmd.set_target_velocity.vy, cmd.set_target_velocity.ang_vel * 1e-3};
@@ -306,7 +306,7 @@ void wait_can() {
       controller.read(msg);
       receive[0] |= (msg.id == 9);
       receive[1] |= (msg.id == 10);
-      receive[2] |= (msg.id == 15);
+      receive[2] |= (msg.id == 15 || msg.id == 200);
     }
     printf("\nwaiting CAN %2d %2d %2d", 9 * !receive[0], 10 * !receive[1], 15 * !receive[2]);
     ThisThread::sleep_for(5ms);
