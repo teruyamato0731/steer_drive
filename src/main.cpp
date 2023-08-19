@@ -132,7 +132,7 @@ auto f = [](std::array<std::complex<float>, 4> cmp) {
     }
   }
 };
-rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.5, 1.2}};
+rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.32, 1.3}};
 #if 0
 struct Controller {
   uint8_t button[2];
