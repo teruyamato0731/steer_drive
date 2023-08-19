@@ -226,10 +226,14 @@ int main() {
 
       // 変位より速度を計算
       static auto pre_coo = rct::Coordinate{};
+      static float pre_diff_rad = 0;
       auto now_coo = odom.get();
       auto now_vel = -1 * (now_coo - pre_coo) / delta;
-      float est_vel_rad = (now_coo - pre_coo).ang_rad * 3 / 4;
+      auto diff_rad = (now_coo - pre_coo).ang_rad;
+      // 10msあたり変位 * 5ms + 変位増加分
+      float est_vel_rad = diff_rad / 2 + (diff_rad - pre_diff_rad) / 2;
       pre_coo = now_coo;
+      pre_diff_rad = diff_rad;
 
       // ±1の範囲にスケール
       now_vel.x_milli *= -127.0 / 285;
