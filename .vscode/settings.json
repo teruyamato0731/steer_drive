@@ -58,5 +58,31 @@
     "thread": "cpp",
     "cinttypes": "cpp",
     "typeinfo": "cpp"
-  }
+  },
+  "C_Cpp.exclusionPolicy": "checkFolders",
+  "C_Cpp.files.exclude": {
+    "**/tests/UNITTESTS/doubles": true,
+    "**/targets/TARGET_[^S]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32[^F]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32?[^4]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F4[^4]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE": true,
+  },
+  "search.exclude": {
+    "**/tests/UNITTESTS/doubles": true,
+    "**/targets/TARGET_[^S]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32[^F]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32?[^4]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F4[^4]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE": true,
+  },
+  "files.watcherExclude": {
+    "**/tests/UNITTESTS/doubles": true,
+    "**/targets/TARGET_[^S]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32[^F]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32?[^4]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F4[^4]*": true,
+    "**/targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE": true,
+  },
+  "platformio-ide.autoRebuildAutocompleteIndex": false
 }
