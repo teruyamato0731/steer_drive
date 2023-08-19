@@ -133,23 +133,25 @@ auto f = [](std::array<std::complex<float>, 4> cmp) {
   }
 };
 rct::ChassisPid<rct::SteerDrive<4>> steer{f, {0.5, 1.2}};
-// struct Controller {
-//   uint8_t button[2];
-//   int8_t stick[4];  // LX,LY,RX,RY
+#if 0
+struct Controller {
+  uint8_t button[2];
+  int8_t stick[4];  // LX,LY,RX,RY
 
-//   void read(const CANMessage& msg) {
-//     if(msg.format == CANStandard && msg.type == CANData && msg.id == 15u) {
-//       memcpy(this, msg.data, sizeof(Controller));
-//       for(auto& e: stick) {
-//         e -= 128;
-//         if(std::abs(e) < 15) e = 0;
-//       }
-//     }
-//   }
-//   rct::Velocity get_vel() const {
-//     return {stick[1] / 128.0f, -stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
-//   }
-// } controller;
+  void read(const CANMessage& msg) {
+    if(msg.format == CANStandard && msg.type == CANData && msg.id == 15u) {
+      memcpy(this, msg.data, sizeof(Controller));
+      for(auto& e: stick) {
+        e -= 128;
+        if(std::abs(e) < 15) e = 0;
+      }
+    }
+  }
+  rct::Velocity get_vel() const {
+    return {stick[1] / 128.0f, -stick[0] / 128.0f, stick[2] / 128.0f * 3 / 4};
+  }
+} controller;
+#else
 struct Controller {
   rct::Velocity vel = {};
 
@@ -176,6 +178,7 @@ struct Controller {
     return vel;
   }
 } controller;
+#endif
 
 int main() {
   // put your setup code here, to run once:
