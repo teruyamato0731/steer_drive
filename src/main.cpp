@@ -312,7 +312,7 @@ int main() {
 }
 
 void wait_can() {
-  bool receive[3] = {};
+  bool receive[3] = {1, 1, 0};
   while(!(receive[0] && receive[1] && receive[2])) {
     if(can1.read(msg)) {
       sensor_board.read(msg);
