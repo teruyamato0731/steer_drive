@@ -53,7 +53,7 @@ struct Amt21 {
       now_pos = (now_pos & 0x3fff) >> 2;
       int16_t diff = now_pos - pre_pos;
       uint16_t sign = (diff & 0x800) * 0x1e;  // 12-bit目を符号ビットとして扱う
-      pos += sign | diff;
+      pos += sign | (diff & 0xfff);
       pre_pos = now_pos;
       return true;
     }
