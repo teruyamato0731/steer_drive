@@ -16,9 +16,9 @@
 
 // const variable
 constexpr auto dc_id = 5;
-constexpr int enc_rot = 12934;   // steer unit 1周あたりエンコーダが読むパルス数
-constexpr int one_rotate = 363;  // steer 1周あたりのオドメトリ
-constexpr int one_meter = 110;   // steer 1mあたりのオドメトリ
+constexpr int enc_rot = 4096 * 2;  // steer unit 1周あたりエンコーダが読むパルス数
+constexpr int one_rotate = 363;    // steer 1周あたりのオドメトリ
+constexpr int one_meter = 110;     // steer 1mあたりのオドメトリ
 
 // prototype
 /// @brief センサ基板とコントローラの入力を待機する
@@ -94,7 +94,7 @@ struct SteerOdom {
   rct::Coordinate pos_;
 };
 constexpr rct::PidGain drive_gain{1.2, 0.3};
-constexpr rct::PidGain gain{3.65, 0.85, 0.0005};
+constexpr rct::PidGain gain{5.7, 1.3, 0.0005};
 struct SteerUnit {
   auto calc_pid(const int rpm, const int pos, const std::chrono::microseconds& delta_time) {
     float drive = pid_drive.calc(target_rpm, rpm, delta_time);
