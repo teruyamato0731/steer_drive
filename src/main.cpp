@@ -210,7 +210,7 @@ int main() {
     }
 
     // 10msごとにCAN送信
-    if(static PollWait<Kernel::Clock> wait{}; auto delta = wait(10ms)) {
+    if(static PollWait<Kernel::Clock> wait{}; auto elapsed = wait(10ms)) {
       rct::Velocity vel = controller.get_vel();
 
       // C620が生存なら
@@ -218,7 +218,7 @@ int main() {
         // Odom で自己位置を推定
         std::complex<float> diff[4];
         for(auto i = 0; i < 4; ++i) {
-          float rho = dji.data[i].rpm * delta.count() * 1e-5;
+          float rho = dji.data[i].rpm * elapsed.count() * 1e-5;
           float theta = 2 * M_PI / enc_rot * amt[i].pos;
           diff[i] = std::polar(rho, theta);
         }
@@ -229,7 +229,7 @@ int main() {
       static auto pre_coo = rct::Coordinate{};
       static float pre_diff_rad = 0;
       auto now_coo = odom.get();
-      auto now_vel = -1 * (now_coo - pre_coo) / delta;
+      auto now_vel = -1 * (now_coo - pre_coo) / elapsed;
       auto diff_rad = (now_coo - pre_coo).ang_rad;
       // 10msあたり変位 * 5ms + 変位増加分
       float est_vel_rad = diff_rad / 2 + (diff_rad - pre_diff_rad) / 2;
@@ -244,8 +244,11 @@ int main() {
       // 姿勢角 = 現在の角度 + 予測変位
       float offset_rad = odom.get().ang_rad + M_PI / 2 + est_vel_rad;
       if(vel != rct::Velocity{}) {
-        steer.pid_move(vel, now_vel, delta, offset_rad);
+        steer.pid_move(vel, now_vel, elapsed, offset_rad);
       } else {
+        printf("     ");
+        printf("     ");
+        printf("     ");
         steer.move(vel, offset_rad);
         steer.refresh();
       }
@@ -254,7 +257,7 @@ int main() {
         if(now - pre_alive < 100ms || true) {
           // pidの計算
           // TODO encの更新に合わせる？ delta timeを
-          std::tie(dji.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(dji.data[i].rpm, -amt[i].pos, delta);
+          std::tie(dji.pwm[i], dc_sender.pwm[i]) = unit[i].calc_pid(dji.data[i].rpm, -amt[i].pos, elapsed);
         } else {
           // fail時, 出力を1/2倍していく
           dji.pwm[i] /= 2;

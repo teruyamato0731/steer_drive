@@ -3,6 +3,7 @@
 
 #include <chrono>
 
+/// @brief non-blocking wait
 template<class Clock = std::chrono::steady_clock>
 struct PollWait {
   PollWait() : pre_{Clock::now()} {}
@@ -10,8 +11,11 @@ struct PollWait {
     auto now = Clock::now();
     auto delta = now - pre_;
     auto elapsed = delta > wait;
-    if(elapsed) pre_ = now;
+    if(elapsed) reset(now);
     return Result{delta, elapsed};
+  }
+  void reset(typename Clock::time_point init = Clock::now()) {
+    pre_ = init;
   }
  private:
   struct Result : Clock::duration {
