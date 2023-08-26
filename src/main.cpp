@@ -49,7 +49,7 @@ struct Amt21 {
   bool request_pos() {
     rs485.uart_transmit({address});
     wait_us(1);
-    if(uint16_t now_pos; rs485.uart_receive(&now_pos, sizeof(now_pos), 10ms) && is_valid(now_pos)) {
+    if(uint16_t now_pos; rs485.uart_receive(&now_pos, sizeof(now_pos), 1ms) && is_valid(now_pos)) {
       now_pos = (now_pos & 0x3fff) >> 2;
       int16_t diff = now_pos - pre_pos;
       int16_t sign = (diff & 0x800) * 0x1e;  // 12-bit目を符号ビットとして扱う
