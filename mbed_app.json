@@ -1,0 +1,10 @@
+{
+  "requires": [
+    "bare-metal"
+  ],
+  "target_overrides": {
+    "*": {
+      "target.c_lib": "small"
+    }
+  }
+}
