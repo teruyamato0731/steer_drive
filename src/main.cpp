@@ -25,7 +25,6 @@ constexpr int one_meter = 110;     // steer 1mあたりのオドメトリ
 void wait_can();
 
 // IO
-BufferedSerial pc{USBTX, USBRX, 115200};
 Rs485 rs485{PB_6, PA_10, (int)2e6, PC_0};
 CAN can1{PA_11, PA_12, (int)1e6};
 CAN can2{PB_12, PB_13, (int)1e6};
